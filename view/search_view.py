@@ -50,14 +50,12 @@ class SearchView(QWidget):
                 "An error occurred while searching for Polish definitions of the word:\n" +
                 self.model.error_pl
             )
-            return
             
         if self.model.error_en:
             self.error.showMessage(
                 "An error occurred while searching for English definitions of the word:\n" +
                 self.model.error_en
             )
-            return
 
         self.resize(800, 900)
         
@@ -67,47 +65,37 @@ class SearchView(QWidget):
         
         self.tabs = QTabWidget()
         
-        # polish definitions
-        
-        scroll_area_pl = QScrollArea()
-        scroll_area_pl.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
-        scroll_area_pl.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        scroll_area_pl.setWidgetResizable(True)
-        
-        results_pl = QWidget()
-        results_pl_layout = QVBoxLayout()
-        results_pl_layout.setAlignment(Qt.AlignTop)
-        results_pl_layout.setSpacing(30)
-        results_pl.setLayout(results_pl_layout)
-        scroll_area_pl.setWidget(results_pl)
-        
-        for meaning in self.model.english_to_polish:
-            en2pl = EnglishToPolish(meaning["words"], meaning["definitions"])
-            results_pl_layout.addWidget(en2pl)
-        
-        self.tabs.addTab(scroll_area_pl, "In Polish")
-        
-        # english definitions
-        
-        scroll_area_en = QScrollArea()
-        scroll_area_en.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
-        scroll_area_en.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        scroll_area_en.setWidgetResizable(True)
-        
-        self.tabs.addTab(scroll_area_en, "In English")
-        
-        # for meaning in self.model.english_meanings:
-        #     label = QLabel(meaning["definitions"][0]["definition"])
-        #     label.setWordWrap(True)
-        #     self.results_pl_layout.addWidget(label)
-        #     self.meanings.append(label)
+        search_results_pl = SearchResults(self.model.english_to_polish, "pl")
+        self.tabs.addTab(search_results_pl, "In Polish")
+        search_results_en = SearchResults(self.model.english_to_english, "en")
+        self.tabs.addTab(search_results_en, "In English")
         
         self.main_layout.addWidget(self.tabs)
         self.search_count += 1
 
 
-class EnglishToPolish(QWidget):
-    def __init__(self, words, definitions):
+class SearchResults(QScrollArea):
+    def __init__(self, entries, lang):
+        super().__init__()
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.setWidgetResizable(True)
+        
+        results = QWidget()
+        layout = QVBoxLayout()
+        layout.setAlignment(Qt.AlignTop)
+        layout.setSpacing(30)
+        results.setLayout(layout)
+        
+        for entry in entries:
+            e = Entry(lang, entry["words"], entry["definitions"])
+            layout.addWidget(e)
+        
+        self.setWidget(results)
+
+
+class Entry(QWidget):
+    def __init__(self, lang, words, definitions):
         super().__init__()
         main_layout = QVBoxLayout()
         definitions_layout = QVBoxLayout()
@@ -122,7 +110,7 @@ class EnglishToPolish(QWidget):
         words_label.setWordWrap(True)
         
         for d in definitions:
-            pd = PolishDefinition(d["definition"], d["partOfSpeech"], d["sentences"])
+            pd = Meaning(lang, d["definition"], d["partOfSpeech"], d["sentences"])
             definitions_layout.addWidget(pd)
         
         main_layout.addWidget(words_label)
@@ -131,8 +119,8 @@ class EnglishToPolish(QWidget):
         self.setLayout(main_layout)
 
 
-class PolishDefinition(QWidget):
-    def __init__(self, definition, part_of_speech, sentences):
+class Meaning(QWidget):
+    def __init__(self, lang, definition, part_of_speech, sentences):
         super().__init__()
         main_layout = QVBoxLayout()
         top_layout = QVBoxLayout()
@@ -182,8 +170,3 @@ class PolishDefinition(QWidget):
         main_layout.addLayout(bottom_layout)
         main_layout.setSpacing(18)
         self.setLayout(main_layout)
-
-
-class EnglishToEnglish():
-    def __init__(self, word, meanings):
-        pass
