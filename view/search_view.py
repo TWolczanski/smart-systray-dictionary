@@ -1,6 +1,7 @@
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import Qt, pyqtSignal
-from PyQt5.QtWidgets import QVBoxLayout, QHBoxLayout, QWidget, QLabel, QLineEdit, QPushButton, QScrollArea, QSizePolicy, QErrorMessage, QTabWidget
+from PyQt5.QtWidgets import QVBoxLayout, QHBoxLayout, QWidget, QLabel, QLineEdit, QPushButton, QScrollArea, QSizePolicy, QErrorMessage, QTabWidget, QDesktopWidget
+from pynput import keyboard
 
 class SearchView(QWidget):
     hotkey_pressed = pyqtSignal()
@@ -23,17 +24,42 @@ class SearchView(QWidget):
         self.main_layout.setAlignment(Qt.AlignTop)
         self.setLayout(self.main_layout)
         
-        self.resize(800, 50)
-        self.model.search_finished.connect(self.on_search_finished)
-        self.hotkey_pressed.connect(self.on_hotkey)
         self.error = QErrorMessage()
-        self.search_count = 0
+        
+        self.model.search_finished.connect(self.on_search_finished)
+        
+        self.hotkey_pressed.connect(self.on_hotkey)
+        self.hotkey = keyboard.HotKey(keyboard.HotKey.parse("<cmd>+s"), on_activate=self.on_activate)
+        self.listener = keyboard.Listener(
+            on_press=self.for_canonical(self.hotkey.press),
+            on_release=self.for_canonical(self.hotkey.release)
+        )
+        self.listener.start()
+    
+    def for_canonical(self, f):
+        return lambda k: f(self.listener.canonical(k))
+
+    def on_activate(self):
+        self.hotkey_pressed.emit()
         
     def on_hotkey(self):
         if self.isHidden():
+            self.search_bar.setText("")
+            self.tabs = QTabWidget()
             self.show()
+            self.activateWindow()
+            self.resize(800, 50)
+            self.center()
         else:
             self.close()
+            self.main_layout.removeWidget(self.tabs)
+            self.tabs.deleteLater()
+    
+    def center(self):
+        fg = self.frameGeometry()
+        center_point = QDesktopWidget().availableGeometry().center()
+        fg.moveCenter(center_point)
+        self.move(fg.topLeft())
         
     def on_search_finished(self):
         if self.model.error_pl and self.model.error_en:
@@ -59,9 +85,8 @@ class SearchView(QWidget):
 
         self.resize(800, 900)
         
-        if self.search_count > 0:
-            self.main_layout.removeWidget(self.tabs)
-            self.tabs.deleteLater()
+        self.main_layout.removeWidget(self.tabs)
+        self.tabs.deleteLater()
         
         self.tabs = QTabWidget()
         
@@ -71,7 +96,6 @@ class SearchView(QWidget):
         self.tabs.addTab(search_results_en, "In English")
         
         self.main_layout.addWidget(self.tabs)
-        self.search_count += 1
 
 
 class SearchResults(QScrollArea):
