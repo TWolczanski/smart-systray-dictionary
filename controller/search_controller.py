@@ -11,19 +11,20 @@ class SearchController(QObject):
         Thread(target=self.search_, args=[word]).start()
     
     def search_(self, word):
-        self.model.word = word
         self.model.english_to_polish = []
         self.model.english_to_english = []
+        self.model.error_pl = ""
+        self.model.error_en = ""
         
         try:
             self.search_pl(word)
         except Exception as e:
             self.model.error_pl = str(e)
-        
-        # fetch English definitions of the word
-        # data_raw_en = requests.get("https://api.dictionaryapi.dev/api/v2/entries/en/" + word, headers={"User-Agent": "Mozilla/5.0"})
-        # data_en = data_raw_en.json()
-        # self.model.english_meanings = data_en[0]["meanings"]
+            
+        try:
+            self.search_en(word)
+        except Exception as e:
+            self.model.error_en = str(e)
         
         self.model.search_finished.emit()
     
@@ -34,10 +35,10 @@ class SearchController(QObject):
         container = soup.select_one('a[name="en-pl"]').parent.find_next_sibling(class_="diki-results-container").select_one(".diki-results-left-column")
         
         for t1 in container.select(".dictionaryEntity"):
-            meaning = {"words": [], "definitions": []}
+            entry = {"words": [], "definitions": []}
             
             for t2 in t1.select(".hws .hw"):
-                meaning["words"].append(t2.get_text(" ", strip=True))
+                entry["words"].append(t2.get_text(" ", strip=True))
                 
             for t2 in t1.select(".foreignToNativeMeanings"):
                 part_of_speech = ""
@@ -65,6 +66,33 @@ class SearchController(QObject):
                         d["partOfSpeech"] = part_of_speech
                     d["sentences"] = sentences
                     
-                    meaning["definitions"].append(d)
+                    entry["definitions"].append(d)
             
-            self.model.english_to_polish.append(meaning)
+            self.model.english_to_polish.append(entry)
+    
+    def search_en(self, word):
+        res = requests.get("https://api.dictionaryapi.dev/api/v2/entries/en/" + word, headers={"User-Agent": "Mozilla/5.0"})
+        content = res.json()
+        
+        for c in content:
+            entry = {
+                "words": [c["word"]],
+                "definitions": []
+            }
+            
+            for m in c["meanings"]:
+                part_of_speech = ""
+                if "partOfSpeech" in m:
+                    part_of_speech = m["partOfSpeech"]
+                    
+                for d in m["definitions"]:
+                    sentences = []
+                    if "example" in d:
+                        sentences.append(d["example"])
+                    entry["definitions"].append({
+                        "definition": d["definition"],
+                        "partOfSpeech": part_of_speech,
+                        "sentences": sentences
+                    })
+            
+            self.model.english_to_english.append(entry)
