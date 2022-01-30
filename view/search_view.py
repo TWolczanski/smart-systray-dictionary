@@ -65,34 +65,18 @@ class SearchView(QWidget):
         font.setFamily("Arial")
         font.setPointSize(12)
         
-        word_font = QtGui.QFont()
-        word_font.setFamily("Arial")
-        word_font.setPointSize(30)
-        word_font.setBold(True)
-        
-        part_of_speech_font = QtGui.QFont()
-        part_of_speech_font.setFamily("Arial")
-        part_of_speech_font.setPointSize(12)
-        part_of_speech_font.setItalic(True)
-        
-        word_label = QLabel(self.model.word)
-        word_label.setFont(word_font)
-        self.results_layout.addWidget(word_label)
-        
         in_polish = QLabel("IN POLISH")
         in_polish.setFont(font)
         self.results_layout.addWidget(in_polish)
         
-        for meaning in self.model.polish_meanings:
-            layout = QVBoxLayout()
-            part_of_speech = QLabel(meaning["partOfSpeech"])
-            part_of_speech.setFont(part_of_speech_font)
-            layout.addWidget(part_of_speech)
-            for d in meaning["definitions"]:
-                pm = PolishMeaning(d["definition"], d["sentences"])
-                layout.addWidget(pm)
-            self.results_layout.addLayout(layout)
-            layout.setSpacing(30)
+        en2pl_layout = QVBoxLayout()
+        
+        for meaning in self.model.english_to_polish:
+            en2pl = EnglishToPolish(meaning["words"], meaning["definitions"])
+            en2pl_layout.addWidget(en2pl)
+        
+        en2pl_layout.setSpacing(30)
+        self.results_layout.addLayout(en2pl_layout)
         
         # for meaning in self.model.english_meanings:
         #     label = QLabel(meaning["definitions"][0]["definition"])
@@ -102,12 +86,37 @@ class SearchView(QWidget):
         
         self.search_count += 1
 
-class PolishMeaning(QWidget):
-    def __init__(self, definition, sentences):
+
+class EnglishToPolish(QWidget):
+    def __init__(self, words, definitions):
         super().__init__()
-        self.main_layout = QVBoxLayout()
-        self.top_layout = QHBoxLayout()
-        self.bottom_layout = QVBoxLayout()
+        main_layout = QVBoxLayout()
+        definitions_layout = QVBoxLayout()
+        
+        words_font = QtGui.QFont()
+        words_font.setFamily("Times")
+        words_font.setPointSize(32)
+        words_font.setBold(True)
+        
+        words_label = QLabel("\n".join(words))
+        words_label.setFont(words_font)
+        
+        for d in definitions:
+            pd = PolishDefinition(d["definition"], d["partOfSpeech"], d["sentences"])
+            definitions_layout.addWidget(pd)
+        
+        main_layout.addWidget(words_label)
+        definitions_layout.setSpacing(24)
+        main_layout.addLayout(definitions_layout)
+        self.setLayout(main_layout)
+
+
+class PolishDefinition(QWidget):
+    def __init__(self, definition, part_of_speech, sentences):
+        super().__init__()
+        main_layout = QVBoxLayout()
+        top_layout = QHBoxLayout()
+        bottom_layout = QVBoxLayout()
         
         font = QtGui.QFont()
         font.setFamily("Arial")
@@ -118,23 +127,33 @@ class PolishMeaning(QWidget):
         definition_font.setPointSize(12)
         definition_font.setBold(True)
         
+        part_of_speech_font = QtGui.QFont()
+        part_of_speech_font.setFamily("Arial")
+        part_of_speech_font.setPointSize(12)
+        part_of_speech_font.setItalic(True)
+        
         definition_label = QLabel(definition)
         definition_label.setFont(definition_font)
-        definition_label.setStyleSheet("padding-left: 5px")
+        
+        part_of_speech_label = QLabel(part_of_speech)
+        part_of_speech_label.setFont(part_of_speech_font)
+        part_of_speech_label.setStyleSheet("color: gray")
+        
         button = QPushButton("+")
         button.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-        self.top_layout.addWidget(definition_label)
-        self.top_layout.addWidget(button)
+        
+        top_layout.addWidget(definition_label)
+        top_layout.addWidget(button)
         
         for sentence in sentences:
             s = QLabel("• " + sentence)
             s.setFont(font)
-            s.setStyleSheet("padding-left: 20px")
-            self.bottom_layout.addWidget(s)
-        self.bottom_layout.setSpacing(18)
+            s.setStyleSheet("padding-left: 15px")
+            bottom_layout.addWidget(s)
+        bottom_layout.setSpacing(18)
         
-        self.main_layout.addLayout(self.top_layout)
-        self.main_layout.addLayout(self.bottom_layout)
-        self.main_layout.setSpacing(25)
-        self.setLayout(self.main_layout)
-        # self.setStyleSheet(".PolishMeaning { padding: 20px }")
+        main_layout.addLayout(top_layout)
+        main_layout.addWidget(part_of_speech_label)
+        main_layout.addLayout(bottom_layout)
+        main_layout.setSpacing(14)
+        self.setLayout(main_layout)

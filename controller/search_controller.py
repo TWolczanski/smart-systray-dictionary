@@ -12,8 +12,8 @@ class SearchController(QObject):
     
     def search_(self, word):
         self.model.word = word
-        self.model.polish_meanings = []
-        self.model.english_meanings = []
+        self.model.english_to_polish = []
+        self.model.english_to_english = []
         
         self.scrape_pl(word)
         # try:
@@ -35,24 +35,34 @@ class SearchController(QObject):
         container = soup.select_one('a[name="en-pl"]').parent.find_next_sibling(class_="diki-results-container").select_one(".diki-results-left-column")
         
         for t1 in container.select(".dictionaryEntity"):
-            for t2 in t1.select(".partOfSpeechSectionHeader"):
-                part_of_speech = t2.select_one(".partOfSpeech").text
-                new_part_of_speech = True
-                meaning = {}
-                meaning["partOfSpeech"] = part_of_speech
-                meaning["definitions"] = []
+            meaning = {"words": [], "definitions": []}
+            
+            for t2 in t1.select(".hws .hw"):
+                meaning["words"].append(t2.get_text(" ", strip=True))
                 
-                for m in self.model.polish_meanings:
-                    if m["partOfSpeech"] == part_of_speech:
-                        new_part_of_speech = False
-                        meaning = m
+            for t2 in t1.select(".partOfSpeechSectionHeader"):
+                # if t2.previous_sibling.get("class") == "partOfSpeechSectionHeader":
+                #     definition["partOfSpeech"] = t2.previous_sibling.select_one(".partOfSpeech").get_text(strip=True)
+                part_of_speech = t2.select_one(".partOfSpeech").get_text(strip=True)
                 
                 for t3 in t2.find_next_sibling(class_="foreignToNativeMeanings").find_all(True, recursive=False):
-                    definition = t3.select_one(".hw").get_text(" ", strip=True)
+                    d = {"definition": "", "partOfSpeech": "", "sentences": []}
+                    
+                    definition = ""
+                    for t4 in t3.select(".hw"):
+                        definition += t4.get_text(" ", strip=True) + ", "
+                    if definition[-2:] == ", ":
+                        definition = definition[:-2]
+                        
                     sentences = []
                     for t4 in t3.select(".exampleSentence"):
                         sentences.append(t4.next.strip())
-                    meaning["definitions"].append({"definition": definition, "sentences": sentences})
+                        
+                    d["definition"] = definition
+                    if part_of_speech is not None:
+                        d["partOfSpeech"] = part_of_speech
+                    d["sentences"] = sentences
                     
-                if new_part_of_speech:
-                    self.model.polish_meanings.append(meaning)
+                    meaning["definitions"].append(d)
+            
+            self.model.english_to_polish.append(meaning)
