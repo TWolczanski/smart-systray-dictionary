@@ -15,11 +15,10 @@ class SearchController(QObject):
         self.model.english_to_polish = []
         self.model.english_to_english = []
         
-        self.scrape_pl(word)
-        # try:
-        #     self.scrape_pl(word)
-        # except:
-        #     self.model.error = "An error occured during the search"
+        try:
+            self.search_pl(word)
+        except Exception as e:
+            self.model.error_pl = str(e)
         
         # fetch English definitions of the word
         # data_raw_en = requests.get("https://api.dictionaryapi.dev/api/v2/entries/en/" + word, headers={"User-Agent": "Mozilla/5.0"})
@@ -28,7 +27,7 @@ class SearchController(QObject):
         
         self.model.search_finished.emit()
     
-    def scrape_pl(self, word):
+    def search_pl(self, word):
         res = requests.get("https://www.diki.pl/slownik-angielskiego?q=" + word, headers={"User-Agent": "Mozilla/5.0"})
         content = res.text
         soup = bs4.BeautifulSoup(content, "html.parser")
@@ -40,12 +39,15 @@ class SearchController(QObject):
             for t2 in t1.select(".hws .hw"):
                 meaning["words"].append(t2.get_text(" ", strip=True))
                 
-            for t2 in t1.select(".partOfSpeechSectionHeader"):
-                # if t2.previous_sibling.get("class") == "partOfSpeechSectionHeader":
-                #     definition["partOfSpeech"] = t2.previous_sibling.select_one(".partOfSpeech").get_text(strip=True)
-                part_of_speech = t2.select_one(".partOfSpeech").get_text(strip=True)
+            for t2 in t1.select(".foreignToNativeMeanings"):
+                part_of_speech = ""
+                sibling = t2.find_previous_sibling(class_="partOfSpeechSectionHeader")
+                if sibling is not None:
+                    child = sibling.select_one(".partOfSpeech")
+                    if child is not None:
+                        part_of_speech = child.get_text(strip=True)
                 
-                for t3 in t2.find_next_sibling(class_="foreignToNativeMeanings").find_all(True, recursive=False):
+                for t3 in t2.find_all(True, recursive=False):
                     d = {"definition": "", "partOfSpeech": "", "sentences": []}
                     
                     definition = ""

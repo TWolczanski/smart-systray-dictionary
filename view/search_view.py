@@ -36,8 +36,8 @@ class SearchView(QWidget):
             self.close()
         
     def on_search_finished(self):
-        if self.model.error:
-            self.error.showMessage(self.model.error)
+        if self.model.error_pl:
+            self.error.showMessage("An error occurred while searching for Polish definitions of the word")
             return
 
         self.resize(800, 900)
@@ -64,10 +64,6 @@ class SearchView(QWidget):
         font = QtGui.QFont()
         font.setFamily("Arial")
         font.setPointSize(12)
-        
-        in_polish = QLabel("IN POLISH")
-        in_polish.setFont(font)
-        self.results_layout.addWidget(in_polish)
         
         en2pl_layout = QVBoxLayout()
         
@@ -115,7 +111,8 @@ class PolishDefinition(QWidget):
     def __init__(self, definition, part_of_speech, sentences):
         super().__init__()
         main_layout = QVBoxLayout()
-        top_layout = QHBoxLayout()
+        top_layout = QVBoxLayout()
+        top_layout_inner = QHBoxLayout()
         bottom_layout = QVBoxLayout()
         
         font = QtGui.QFont()
@@ -142,18 +139,21 @@ class PolishDefinition(QWidget):
         button = QPushButton("+")
         button.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         
-        top_layout.addWidget(definition_label)
-        top_layout.addWidget(button)
+        top_layout_inner.addWidget(definition_label)
+        top_layout_inner.addWidget(button)
+        top_layout.addLayout(top_layout_inner)
+        top_layout.addWidget(part_of_speech_label)
+        top_layout.setSpacing(8)
         
         for sentence in sentences:
-            s = QLabel("• " + sentence)
+            # s = QLabel("• " + sentence)
+            s = QLabel(sentence)
             s.setFont(font)
-            s.setStyleSheet("padding-left: 15px")
+            # s.setStyleSheet("padding-left: 15px")
             bottom_layout.addWidget(s)
         bottom_layout.setSpacing(18)
         
         main_layout.addLayout(top_layout)
-        main_layout.addWidget(part_of_speech_label)
         main_layout.addLayout(bottom_layout)
-        main_layout.setSpacing(14)
+        main_layout.setSpacing(18)
         self.setLayout(main_layout)
