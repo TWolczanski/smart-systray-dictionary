@@ -7,7 +7,7 @@ import bs4
 class SearchController(QObject):
     def __init__(self, model):
         self.model = model
-        self.hotkey = keyboard.HotKey(keyboard.HotKey.parse("<cmd>+s"), on_activate=self.on_activate)
+        self.hotkey = keyboard.HotKey(keyboard.HotKey.parse(self.model.hotkey), on_activate=self.on_activate)
         self.listener = keyboard.Listener(
             on_press=self.for_canonical(self.hotkey.press),
             on_release=self.for_canonical(self.hotkey.release)

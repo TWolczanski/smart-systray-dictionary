@@ -4,6 +4,7 @@ class SearchModel(QObject):
     hotkey_pressed = pyqtSignal()
     search_finished = pyqtSignal()
     
+    hotkey = "<cmd>+s"
     english_to_polish = []
     english_to_english = []
     error_pl = ""
