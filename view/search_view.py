@@ -1,11 +1,8 @@
-from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtCore import Qt, pyqtSignal
+from PyQt5 import QtGui, QtWidgets
+from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QVBoxLayout, QHBoxLayout, QWidget, QLabel, QLineEdit, QPushButton, QScrollArea, QSizePolicy, QErrorMessage, QTabWidget, QDesktopWidget, QMessageBox
-from pynput import keyboard
 
 class SearchView(QWidget):
-    hotkey_pressed = pyqtSignal()
-    
     def __init__(self, model, search_controller, db_controller):
         super().__init__()
         self.model = model
@@ -27,34 +24,27 @@ class SearchView(QWidget):
         
         self.error = QErrorMessage()
         
+        self.model.hotkey_pressed.connect(self.on_hotkey_pressed)
         self.model.search_finished.connect(self.on_search_finished)
         
-        self.hotkey_pressed.connect(self.on_hotkey)
-        self.hotkey = keyboard.HotKey(keyboard.HotKey.parse("<cmd>+s"), on_activate=self.on_activate)
-        self.listener = keyboard.Listener(
-            on_press=self.for_canonical(self.hotkey.press),
-            on_release=self.for_canonical(self.hotkey.release)
-        )
-        self.listener.start()
-    
-    def for_canonical(self, f):
-        return lambda k: f(self.listener.canonical(k))
-
-    def on_activate(self):
-        self.hotkey_pressed.emit()
-        
-    def on_hotkey(self):
+    def on_hotkey_pressed(self):
         if self.isHidden():
-            self.search_bar.setText("")
-            self.tabs = QTabWidget()
             self.show()
-            self.activateWindow()
-            self.resize(800, 50)
-            self.center()
         else:
             self.close()
-            self.main_layout.removeWidget(self.tabs)
-            self.tabs.deleteLater()
+    
+    def closeEvent(self, event):
+        event.accept()
+        self.main_layout.removeWidget(self.tabs)
+        self.tabs.deleteLater()
+    
+    def showEvent(self, event):
+        self.search_bar.setText("")
+        self.tabs = QTabWidget()
+        event.accept()
+        self.activateWindow()
+        self.resize(800, 50)
+        self.center()
     
     def center(self):
         fg = self.frameGeometry()

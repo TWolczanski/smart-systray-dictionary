@@ -1,4 +1,5 @@
 from PyQt5.QtCore import QObject
+from pynput import keyboard
 from threading import Thread
 import requests
 import bs4
@@ -6,6 +7,18 @@ import bs4
 class SearchController(QObject):
     def __init__(self, model):
         self.model = model
+        self.hotkey = keyboard.HotKey(keyboard.HotKey.parse("<cmd>+s"), on_activate=self.on_activate)
+        self.listener = keyboard.Listener(
+            on_press=self.for_canonical(self.hotkey.press),
+            on_release=self.for_canonical(self.hotkey.release)
+        )
+        self.listener.start()
+    
+    def for_canonical(self, f):
+        return lambda k: f(self.listener.canonical(k))
+
+    def on_activate(self):
+        self.model.hotkey_pressed.emit()
         
     def search(self, word):
         Thread(target=self.search_, args=[word]).start()
