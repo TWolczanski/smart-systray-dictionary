@@ -3,11 +3,11 @@ from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QVBoxLayout, QHBoxLayout, QWidget, QLabel, QLineEdit, QPushButton, QScrollArea, QSizePolicy, QErrorMessage, QTabWidget, QDesktopWidget, QMessageBox
 
 class SearchView(QWidget):
-    def __init__(self, model, search_controller, db_controller):
+    def __init__(self, model, search_controller, repetition_controller):
         super().__init__()
         self.model = model
         self.search_controller = search_controller
-        self.db_controller = db_controller
+        self.repetition_controller = repetition_controller
         
         self.main_layout = QVBoxLayout()
         self.top_layout = QHBoxLayout()
@@ -23,6 +23,8 @@ class SearchView(QWidget):
         self.setLayout(self.main_layout)
         
         self.error = QErrorMessage()
+        self.msg = QMessageBox()
+        self.msg.setIcon(QMessageBox.Information)
         
         self.model.hotkey_pressed.connect(self.on_hotkey_pressed)
         self.model.search_finished.connect(self.on_search_finished)
@@ -81,16 +83,31 @@ class SearchView(QWidget):
         
         self.tabs = QTabWidget()
         
-        search_results_pl = SearchResults(self.model.english_to_polish, "pl", self.db_controller)
+        search_results_pl = SearchResults(self.model.english_to_polish)
+        for entry in search_results_pl.entries:
+            for meaning in entry.meanings:
+                meaning.button.clicked.connect(lambda: self.on_button_clicked(entry.words, meaning.definition))
         self.tabs.addTab(search_results_pl, "In Polish")
-        search_results_en = SearchResults(self.model.english_to_english, "en", self.db_controller)
+        
+        search_results_en = SearchResults(self.model.english_to_english)
+        for entry in search_results_en.entries:
+            for meaning in entry.meanings:
+                meaning.button.clicked.connect(lambda: self.on_button_clicked(entry.words, meaning.definition))
         self.tabs.addTab(search_results_en, "In English")
         
         self.main_layout.addWidget(self.tabs)
+    
+    def on_button_clicked(self, words, definition):
+        try:
+            self.repetition_controller.add_words(words, definition)
+            self.msg.setText("Successfully added the meaning to the database")
+            self.msg.exec()
+        except:
+            self.error.showMessage("An error occured while adding the meaning to the database")
 
 
 class SearchResults(QScrollArea):
-    def __init__(self, entries, lang, db_controller):
+    def __init__(self, entries):
         super().__init__()
         self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
@@ -102,16 +119,20 @@ class SearchResults(QScrollArea):
         layout.setSpacing(30)
         results.setLayout(layout)
         
+        self.entries = []
+        
         for entry in entries:
-            e = Entry(entry["words"], entry["definitions"], lang, db_controller)
+            e = Entry(entry["words"], entry["definitions"])
             layout.addWidget(e)
+            self.entries.append(e)
         
         self.setWidget(results)
 
 
 class Entry(QWidget):
-    def __init__(self, words, definitions, lang, db_controller):
+    def __init__(self, words, definitions):
         super().__init__()
+        self.words = words
         main_layout = QVBoxLayout()
         definitions_layout = QVBoxLayout()
         
@@ -124,9 +145,12 @@ class Entry(QWidget):
         words_label.setFont(words_font)
         words_label.setWordWrap(True)
         
+        self.meanings = []
+        
         for d in definitions:
-            pd = Meaning(d["definition"], d["partOfSpeech"], d["sentences"], words, lang, db_controller)
-            definitions_layout.addWidget(pd)
+            m = Meaning(d["definition"], d["partOfSpeech"], d["sentences"])
+            definitions_layout.addWidget(m)
+            self.meanings.append(m)
         
         main_layout.addWidget(words_label)
         definitions_layout.setSpacing(24)
@@ -135,12 +159,9 @@ class Entry(QWidget):
 
 
 class Meaning(QWidget):
-    def __init__(self, definition, part_of_speech, sentences, words, lang, db_controller):
+    def __init__(self, definition, part_of_speech, sentences):
         super().__init__()
-        self.words = words
         self.definition = definition
-        self.lang = lang
-        self.db_controller = db_controller
         
         main_layout = QVBoxLayout()
         top_layout = QVBoxLayout()
@@ -170,20 +191,11 @@ class Meaning(QWidget):
         part_of_speech_label.setWordWrap(True)
         part_of_speech_label.setStyleSheet("color: gray")
         
-        button = QPushButton("+")
-        button.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-        button.clicked.connect(lambda: self.on_button_clicked())
-        
-        self.db_msg = QMessageBox()
-        self.db_msg.setIcon(QMessageBox.Information)
-        self.db_msg.setText("Successfully added the meaning to the database")
-        
-        self.db_error = QMessageBox()
-        self.db_error.setIcon(QMessageBox.Critical)
-        self.db_error.setText("An error occurred while adding the meaning to the database")
+        self.button = QPushButton("+")
+        self.button.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         
         top_layout_inner.addWidget(definition_label)
-        top_layout_inner.addWidget(button)
+        top_layout_inner.addWidget(self.button)
         top_layout.addLayout(top_layout_inner)
         top_layout.addWidget(part_of_speech_label)
         top_layout.setSpacing(8)
@@ -199,10 +211,3 @@ class Meaning(QWidget):
         main_layout.addLayout(bottom_layout)
         main_layout.setSpacing(18)
         self.setLayout(main_layout)
-    
-    def on_button_clicked(self):
-        try:
-            self.db_controller.add_words(self.words, self.definition, self.lang)
-            self.db_msg.exec()
-        except:
-            self.db_error.exec()
