@@ -1,60 +1,32 @@
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, sessionmaker
-from sqlalchemy import Table, Column, Integer, String, ForeignKey, create_engine
+from sqlalchemy import Table, Column, Integer, String, ForeignKey, create_engine, func
+
 
 Base = declarative_base()
 
-association_table_pl = Table(
-    "association_pl",
-    Base.metadata,
-    Column("word_id", ForeignKey("word.id"), primary_key=True),
-    Column("definition_id", ForeignKey("polish_definition.id"), primary_key=True)
-)
 
-association_table_en = Table(
-    "association_en",
-    Base.metadata,
-    Column("word_id", ForeignKey("word.id"), primary_key=True),
-    Column("definition_id", ForeignKey("english_definition.id"), primary_key=True)
-)
-
+class Association(Base):
+    __tablename__ = "association"
+    word_id = Column(ForeignKey("word.id"), primary_key=True)
+    definition_id = Column(ForeignKey("definition.id"), primary_key=True)
+    knowledge_level = Column(Integer)
+    word = relationship("Word", back_populates="definitions")
+    definition = relationship("Definition", back_populates="words")
+    
 
 class Word(Base):
     __tablename__ = "word"
     id = Column(Integer, primary_key=True)
     word = Column(String)
-    polish_definitions = relationship(
-        "PolishDefinition",
-        secondary=association_table_pl,
-        back_populates="words"
-    )
-    english_definitions = relationship(
-        "EnglishDefinition",
-        secondary=association_table_en,
-        back_populates="words"
-    )
+    definitions = relationship("Association", back_populates="word")
 
 
-class PolishDefinition(Base):
-    __tablename__ = "polish_definition"
+class Definition(Base):
+    __tablename__ = "definition"
     id = Column(Integer, primary_key=True)
     definition = Column(String)
-    words = relationship(
-        "Word",
-        secondary=association_table_pl,
-        back_populates="polish_definitions"
-    )
-    
-    
-class EnglishDefinition(Base):
-    __tablename__ = "english_definition"
-    id = Column(Integer, primary_key=True)
-    definition = Column(String)
-    words = relationship(
-        "Word",
-        secondary=association_table_en,
-        back_populates="english_definitions"
-    )
+    words = relationship("Association", back_populates="definition")
     
 
 class DatabaseController():
@@ -64,34 +36,33 @@ class DatabaseController():
         Session = sessionmaker(bind=engine)
         self.session = Session()
     
-    def add_words(self, words, definition, def_lang):
-        if def_lang == "pl":
-            d = self.session.query(PolishDefinition).filter(PolishDefinition.definition == definition).first()
-            if d is None:
-                d = PolishDefinition(definition=definition)
+    def add_words(self, words, definition):
+        d = self.session.query(Definition).filter(Definition.definition == definition).first()
+        if d is None:
+            d = Definition(definition=definition)
+        
+        for word in words:
+            w = self.session.query(Word).filter(Word.word == word).first()
+            if w is None:
+                w = Word(word=word)
+                
+            found = False
+            for a in w.definitions:
+                if a.definition == d:
+                    found = True
+                    break
+                    
+            if not found:
+                a = Association(knowledge_level=1)
+                a.definition = d
+                w.definitions.append(a)
+                
+            self.session.add(w)
             
-            for word in words:
-                w = self.session.query(Word).filter(Word.word == word).first()
-                if w is None:
-                    w = Word(word=word)
-                if d not in w.polish_definitions:
-                    w.polish_definitions.append(d)
-                self.session.add(w)
-                
-            self.session.add(d)
-        else:
-            d = self.session.query(EnglishDefinition).filter(EnglishDefinition.definition == definition).first()
-            if d is None:
-                d = EnglishDefinition(definition=definition)
-                
-            for word in words:
-                w = self.session.query(Word).filter(Word.word == word).first()
-                if w is None:
-                    w = Word(word=word)
-                if d not in w.english_definitions:
-                    w.english_definitions.append(d)
-                self.session.add(w)
-                
-            self.session.add(d)
-            
+        self.session.add(d)
         self.session.commit()
+    
+    def get_random_meaning(self):
+        min_level = self.session.query(func.min(Association.knowledge_level)).first()[0]
+        meaning = self.session.query(Association).filter(Association.knowledge_level == min_level).order_by(func.random()).first()
+        return meaning

@@ -24,6 +24,6 @@ if __name__ == "__main__":
     repetition_view = RepetitionView(repetition_model, repetition_controller)
     system_tray_view = SystemTrayView(search_view)
     system_tray_view.show()
-    # repetition_view.on_quiz_created()
+    db_controller.get_random_meaning("pl")
     
     sys.exit(app.exec())

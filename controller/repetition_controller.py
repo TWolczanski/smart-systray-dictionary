@@ -6,7 +6,7 @@ class RepetitionController(QObject):
     def __init__(self, model, db_controller):
         self.model = model
         self.db_controller = db_controller
-        self.looper = Thread(target=self.loop)
+        self.looper = Thread(target=self.loop, daemon=True)
         self.looper.start()
     
     def loop(self):
@@ -16,4 +16,4 @@ class RepetitionController(QObject):
             self.model.quiz_created.emit()
     
     def create_quiz(self):
-        pass
+        meaning = self.db_controller.get_random_meaning()
