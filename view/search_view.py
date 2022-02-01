@@ -1,6 +1,7 @@
 from PyQt5 import QtGui, QtWidgets
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QVBoxLayout, QHBoxLayout, QWidget, QLabel, QLineEdit, QPushButton, QScrollArea, QSizePolicy, QErrorMessage, QTabWidget, QDesktopWidget, QMessageBox
+from functools import partial
 
 class SearchView(QWidget):
     def __init__(self, model, search_controller, repetition_controller):
@@ -28,6 +29,7 @@ class SearchView(QWidget):
         
         self.model.hotkey_pressed.connect(self.on_hotkey_pressed)
         self.model.search_finished.connect(self.on_search_finished)
+        self.model.database_operation_finished.connect(self.on_database_operation_finished)
         
     def on_hotkey_pressed(self):
         if self.isHidden():
@@ -86,24 +88,33 @@ class SearchView(QWidget):
         search_results_pl = SearchResults(self.model.english_to_polish)
         for entry in search_results_pl.entries:
             for meaning in entry.meanings:
-                meaning.button.clicked.connect(lambda: self.on_button_clicked(entry.words, meaning.definition))
+                meaning.button.clicked.connect(
+                    partial(self.on_button_clicked, entry.words, meaning.definition)
+                )
         self.tabs.addTab(search_results_pl, "In Polish")
         
         search_results_en = SearchResults(self.model.english_to_english)
         for entry in search_results_en.entries:
             for meaning in entry.meanings:
-                meaning.button.clicked.connect(lambda: self.on_button_clicked(entry.words, meaning.definition))
+                meaning.button.clicked.connect(
+                    partial(self.on_button_clicked, entry.words, meaning.definition)
+                )
         self.tabs.addTab(search_results_en, "In English")
         
         self.main_layout.addWidget(self.tabs)
     
     def on_button_clicked(self, words, definition):
-        try:
-            self.repetition_controller.add_words(words, definition)
+        self.repetition_controller.add_meanings(words, definition)
+            
+    def on_database_operation_finished(self):
+        if self.model.db_error:
+            self.error.showMessage(
+                "An error occured while adding the meaning to the database:\n" +
+                self.model.db_error
+            )
+        else:
             self.msg.setText("Successfully added the meaning to the database")
             self.msg.exec()
-        except:
-            self.error.showMessage("An error occured while adding the meaning to the database")
 
 
 class SearchResults(QScrollArea):

@@ -16,11 +16,11 @@ if __name__ == "__main__":
     repetition_model = RepetitionModel()
     
     search_controller = SearchController(search_model)
-    repetition_controller = RepetitionController(repetition_model)
+    repetition_controller = RepetitionController(repetition_model, search_model)
     
     search_view = SearchView(search_model, search_controller, repetition_controller)
     repetition_view = RepetitionView(repetition_model, repetition_controller)
-    system_tray_view = SystemTrayView(search_view)
+    system_tray_view = SystemTrayView(search_view, repetition_controller)
     system_tray_view.show()
     
     sys.exit(app.exec())

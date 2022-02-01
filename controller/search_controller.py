@@ -35,7 +35,7 @@ class SearchController(QObject):
             self.model.error_pl = str(e)
             
         try:
-            self.search_en(word)
+           self.search_en(word)
         except Exception as e:
             self.model.error_en = str(e)
         
