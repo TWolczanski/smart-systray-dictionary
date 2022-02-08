@@ -44,7 +44,7 @@ class RepetitionController(QObject):
     def __init__(self, repetition_model, search_model):
         self.repetition_model = repetition_model
         self.search_model = search_model
-        self.repetitions_enabled = False
+        self.repetitions_enabled = True
         self.quiz_timer = Thread(target=self.quiz_wait, daemon=True)
         self.quiz_timer.start()
         self.operations = Queue()
@@ -102,7 +102,7 @@ class RepetitionController(QObject):
             self.search_model.database_operation_finished.emit()
     
     def create_quiz(self):
-        self.operations.put(lambda: self.create_quiz_())
+        self.operations.put(self.create_quiz_)
     
     def create_quiz_(self):
         session = Session()
@@ -172,5 +172,128 @@ class RepetitionController(QObject):
             session.close()
     
     def check_quiz_answer(self, answer):
-        print(answer)
-        self.repetition_model.quiz_answer_checked.emit()
+        self.operations.put(partial(self.check_quiz_answer_, answer))
+        
+    def check_quiz_answer_(self, answer):
+        session = Session()
+        try:
+            question = self.repetition_model.quiz_question
+            level = self.repetition_model.quiz_level
+            
+            if level == 1:
+                # check which options are correct answers
+                correct_answers = []
+                correct_answers_assoc = []
+                for option in self.repetition_model.quiz_options:
+                    w = (
+                        session.query(Word)
+                        .filter(Word.word == question)
+                        .first()
+                    )
+                    d = (
+                        session.query(Definition)
+                        .filter(Definition.definition == option)
+                        .first()
+                    )
+                    assoc = None
+                    for a in w.definitions:
+                        if a.definition == d:
+                            assoc = a
+                            break
+                    if assoc is not None:
+                        correct_answers.append(option)
+                        correct_answers_assoc.append(assoc)
+                        
+                # if the answer is correct, increase the knowledge level of the meaning
+                if answer in correct_answers:
+                    for i in range(len(correct_answers)):
+                        if answer == correct_answers[i]:
+                            correct_answers_assoc[i].knowledge_level = 2
+                            session.add(correct_answers_assoc[i])
+                    self.repetition_model.quiz_feedback = "Correct!"
+                else:
+                    self.repetition_model.quiz_feedback = "Wrong!"
+                self.repetition_model.quiz_correct_answers = correct_answers
+            
+            elif level == 2:
+                # check which options are correct answers
+                correct_answers = []
+                correct_answers_assoc = []
+                for option in self.repetition_model.quiz_options:
+                    d = (
+                        session.query(Definition)
+                        .filter(Definition.definition == question)
+                        .first()
+                    )
+                    w = (
+                        session.query(Word)
+                        .filter(Word.word == option)
+                        .first()
+                    )
+                    assoc = None
+                    for a in d.words:
+                        if a.word == w:
+                            assoc = a
+                            break
+                    if assoc is not None:
+                        correct_answers.append(option)
+                        correct_answers_assoc.append(assoc)
+                    
+                # if the answer is correct, increase the knowledge level of the meaning
+                if answer in correct_answers:
+                    for i in range(4):
+                        if answer == correct_answers[i]:
+                            correct_answers_assoc[i].knowledge_level = 3
+                            session.add(correct_answers_assoc[i])
+                    self.repetition_model.quiz_feedback = "Correct!"
+                # if the answer is incorrect, decrease the knowledge level of the meaning
+                elif len(correct_answers) == 1:
+                    correct_answers_assoc[0].knowledge_level = 1
+                    session.add(correct_answers_assoc[0])
+                    self.repetition_model.quiz_feedback = "Wrong! The correct answer is: " + correct_answers[0]
+                else:
+                    for a in correct_answers_assoc:
+                        a.knowledge_level = 1
+                        session.add(a)
+                    self.repetition_model.quiz_feedback = "Wrong!"
+                self.repetition_model.quiz_correct_answers = correct_answers
+            
+            elif level == 3:
+                d = (
+                    session.query(Definition)
+                    .filter(Definition.definition == question)
+                    .first()
+                )
+                w = (
+                    session.query(Word)
+                    .filter(Word.word == answer)
+                    .first()
+                )
+                correct_answers = []
+                correct_answers_assoc = []
+                assoc = None
+                for a in d.words:
+                    correct_answers_assoc.append(a)
+                    correct_answers.append(a.word)
+                    if a.word == w:
+                        assoc = a
+                        
+                # if the answer is wrong, decrease the knowledge level of every correct answer
+                if assoc is None:
+                    for a in correct_answers_assoc:
+                        a.knowledge_level = 2
+                        session.add(a)
+                    self.repetition_model.quiz_feedback = "Wrong! An example of a correct answer is: " + random.choice(correct_answers)
+                else:
+                    assoc.knowledge_level = 3
+                    session.add(assoc)
+                    self.repetition_model.quiz_feedback = "Correct!"
+                    
+            # Session.commit()
+            
+        except Exception as e:
+            session.rollback()
+            self.repetition_model.quiz_feedback = "Error"
+        finally:
+            session.close()
+            self.repetition_model.quiz_answer_checked.emit()

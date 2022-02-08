@@ -17,13 +17,16 @@ class RepetitionView(QWidget):
         main_layout.setAlignment(Qt.AlignTop)
         top_layout = QHBoxLayout()
         
-        self.feedback = QLabel()
-        top_layout.addWidget(self.feedback)
         self.time_left = QLabel()
         top_layout.addWidget(self.time_left)
+        top_layout.addStretch()
+        
+        self.feedback = QLabel()
+        self.feedback.setWordWrap(True)
+        top_layout.addWidget(self.feedback)
         main_layout.addLayout(top_layout)
         
-        self.easy_quiz = EasyQuiz(self.controller)
+        self.easy_quiz = EasyQuiz(self.model, self.controller)
         main_layout.addWidget(self.easy_quiz)
         
         self.setLayout(main_layout)
@@ -51,6 +54,10 @@ class RepetitionView(QWidget):
     def on_quiz_created(self):
         self.count = self.model.quiz_time
         self.time_left.setText(str(self.count))
+        self.feedback.setText("")
+        self.feedback.adjustSize()
+        vbar = self.easy_quiz.verticalScrollBar()
+        vbar.setValue(vbar.minimum())
         self.easy_quiz.set_question(self.model.quiz_question)
         self.easy_quiz.set_options(self.model.quiz_options)
         self.show()
@@ -60,20 +67,26 @@ class RepetitionView(QWidget):
         self.countdown.stop()
         self.count = 4
         self.time_left.setText(str(self.count))
+        self.feedback.setText(self.model.quiz_feedback)
+        self.feedback.adjustSize()
+        self.easy_quiz.on_quiz_answer_checked()
         self.countdown.start(1000)
 
 
 class EasyQuiz(QScrollArea):
-    def __init__(self, controller):
+    def __init__(self, model, controller):
         super().__init__()
         self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.setWidgetResizable(True)
+        self.model = model
         self.controller = controller
         
         self.quiz = QWidget()
         self.setWidget(self.quiz)
         main_layout = QVBoxLayout()
+        main_layout.setAlignment(Qt.AlignTop)
+        main_layout.setSpacing(10)
         self.quiz.setLayout(main_layout)
         
         self.question = QLabel()
@@ -86,30 +99,63 @@ class EasyQuiz(QScrollArea):
         main_layout.addWidget(self.question)
         
         self.options = QButtonGroup()
+        self.labels = []
+        
         for i in range(4):
+            option_layout = QHBoxLayout()
+            option_layout.setAlignment(Qt.AlignLeft)
+            
             option = QRadioButton()
+            # give the button id, so it can be associated with a label
+            self.options.addButton(option, i)
             option.clicked.connect(self.on_option_clicked)
-            main_layout.addWidget(option)
-            self.options.addButton(option)
+            option_layout.addWidget(option)
+            
+            option_label = QLabel("a")
+            option_label.setWordWrap(True)
+            option_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+            font = QtGui.QFont()
+            font.setFamily("Arial")
+            font.setPointSize(11)
+            option_label.setFont(font)
+            option_label.adjustSize()
+            self.labels.append(option_label)
+            option_layout.addWidget(option_label)
+            
+            main_layout.addLayout(option_layout)
         
         self.setStyleSheet(".EasyQuiz { border: none }")
     
     def on_option_clicked(self):
-        self.controller.check_quiz_answer(self.options.checkedButton().text())
-        for option in self.options.buttons():
-            option.setEnabled(False)
+        self.controller.check_quiz_answer(self.labels[self.options.checkedId()].text())
+        # for some reason range(4) causes a scroll
+        for i in range(3, 0, -1):
+            self.options.buttons()[i].setEnabled(False)
+        for label in self.labels:
+            label.setStyleSheet("color: gray")
     
     def set_question(self, question):
         self.question.setText(question)
     
     def set_options(self, options):
-        i = 0
         for option in self.options.buttons():
             option.setEnabled(True)
-            option.setText(options[i])
-            i += 1
         checked = self.options.checkedButton()
         if checked is not None:
             self.options.setExclusive(False)
             checked.setChecked(False)
             self.options.setExclusive(True)
+        i = 0
+        for label in self.labels:
+            label.setText(options[i])
+            label.setStyleSheet("color: black")
+            label.adjustSize()
+            i += 1
+    
+    def on_quiz_answer_checked(self):
+        answer = self.labels[self.options.checkedId()].text()
+        for label in self.labels:
+            if label.text() in self.model.quiz_correct_answers:
+                label.setStyleSheet("color: green")
+            elif answer == label.text():
+                label.setStyleSheet("color: red")

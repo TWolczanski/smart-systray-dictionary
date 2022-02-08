@@ -22,6 +22,5 @@ if __name__ == "__main__":
     repetition_view = RepetitionView(repetition_model, repetition_controller)
     system_tray_view = SystemTrayView(search_view, repetition_controller)
     system_tray_view.show()
-    repetition_controller.create_quiz()
     
     sys.exit(app.exec())
