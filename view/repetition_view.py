@@ -2,7 +2,7 @@ from functools import partial
 from json.tool import main
 from PyQt5 import QtGui, QtWidgets
 from PyQt5.QtCore import Qt, QTimer
-from PyQt5.QtWidgets import QVBoxLayout, QHBoxLayout, QWidget, QLabel, QLineEdit, QPushButton, QScrollArea, QSizePolicy, QErrorMessage, QTabWidget, QDesktopWidget, QMessageBox, QRadioButton, QButtonGroup
+from PyQt5.QtWidgets import QVBoxLayout, QHBoxLayout, QWidget, QLabel, QLineEdit, QPushButton, QScrollArea, QSizePolicy, QErrorMessage, QTabWidget, QDesktopWidget, QMessageBox, QRadioButton, QButtonGroup, QStyle
 
 class RepetitionView(QWidget):
     def __init__(self, model, controller):
@@ -17,13 +17,23 @@ class RepetitionView(QWidget):
         main_layout.setAlignment(Qt.AlignTop)
         top_layout = QHBoxLayout()
         
-        self.time_left = QLabel()
-        top_layout.addWidget(self.time_left)
+        self.close_button = QPushButton()
+        self.close_button.setIcon(QtGui.QIcon("./asset/close.svg"))
+        self.close_button.setStyleSheet("border: none")
+        self.close_button.setCursor(QtGui.QCursor(Qt.PointingHandCursor))
+        self.close_button.clicked.connect(self.close)
+        # self.close_button.setIcon(
+        #     self.close_button.style().standardIcon(
+        #         QStyle.SP_TitleBarCloseButton
+        #     )
+        # )
+        top_layout.addWidget(self.close_button)
         top_layout.addStretch()
         
-        self.feedback = QLabel()
-        self.feedback.setWordWrap(True)
-        top_layout.addWidget(self.feedback)
+        self.info = QLabel()
+        top_layout.addWidget(self.info)
+        top_layout.addStretch()
+        
         main_layout.addLayout(top_layout)
         
         self.easy_quiz = EasyQuiz(self.model, self.controller)
@@ -44,18 +54,19 @@ class RepetitionView(QWidget):
         self.model.quiz_created.connect(self.on_quiz_created)
         self.model.quiz_answer_checked.connect(self.on_quiz_answer_checked)
     
+    def closeEvent(self, event):
+        self.countdown.stop()
+        event.accept()
+    
     def update_timer(self):
         self.count -= 1
-        self.time_left.setText(str(self.count))
+        self.info.setText(str(self.count))
         if self.count <= 0:
-            self.countdown.stop()
             self.close()
     
     def on_quiz_created(self):
         self.count = self.model.quiz_time
-        self.time_left.setText(str(self.count))
-        self.feedback.setText("")
-        self.feedback.adjustSize()
+        self.info.setText(str(self.count))
         vbar = self.easy_quiz.verticalScrollBar()
         vbar.setValue(vbar.minimum())
         self.easy_quiz.set_question(self.model.quiz_question)
@@ -65,12 +76,9 @@ class RepetitionView(QWidget):
     
     def on_quiz_answer_checked(self):
         self.countdown.stop()
-        self.count = 4
-        self.time_left.setText(str(self.count))
-        self.feedback.setText(self.model.quiz_feedback)
-        self.feedback.adjustSize()
+        self.info.setText(self.model.quiz_feedback)
+        self.info.adjustSize()
         self.easy_quiz.on_quiz_answer_checked()
-        self.countdown.start(1000)
 
 
 class EasyQuiz(QScrollArea):
