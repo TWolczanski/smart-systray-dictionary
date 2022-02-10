@@ -161,7 +161,7 @@ class EasyQuiz(QScrollArea):
         self.view.activateWindow()
         self.controller.check_quiz_answer(self.labels[self.options.checkedId()].text())
         # for some reason range(4) causes a scroll
-        for i in range(3, 0, -1):
+        for i in range(3, -1, -1):
             self.options.buttons()[i].setEnabled(False)
         for label in self.labels:
             label.setStyleSheet("color: gray")
