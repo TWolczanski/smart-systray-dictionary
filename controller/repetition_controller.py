@@ -184,12 +184,12 @@ class RepetitionController(QObject):
                 # check which options are correct answers
                 correct_answers = []
                 correct_answers_assoc = []
+                w = (
+                    session.query(Word)
+                    .filter(Word.word == question)
+                    .first()
+                )
                 for option in self.repetition_model.quiz_options:
-                    w = (
-                        session.query(Word)
-                        .filter(Word.word == question)
-                        .first()
-                    )
                     d = (
                         session.query(Definition)
                         .filter(Definition.definition == option)
@@ -213,18 +213,19 @@ class RepetitionController(QObject):
                     self.repetition_model.quiz_feedback = "Correct!"
                 else:
                     self.repetition_model.quiz_feedback = "Wrong!"
+                    
                 self.repetition_model.quiz_correct_answers = correct_answers
             
             elif level == 2:
                 # check which options are correct answers
                 correct_answers = []
                 correct_answers_assoc = []
+                d = (
+                    session.query(Definition)
+                    .filter(Definition.definition == question)
+                    .first()
+                )
                 for option in self.repetition_model.quiz_options:
-                    d = (
-                        session.query(Definition)
-                        .filter(Definition.definition == question)
-                        .first()
-                    )
                     w = (
                         session.query(Word)
                         .filter(Word.word == option)
@@ -241,21 +242,19 @@ class RepetitionController(QObject):
                     
                 # if the answer is correct, increase the knowledge level of the meaning
                 if answer in correct_answers:
-                    for i in range(4):
+                    for i in range(len(correct_answers)):
                         if answer == correct_answers[i]:
                             correct_answers_assoc[i].knowledge_level = 3
                             session.add(correct_answers_assoc[i])
                     self.repetition_model.quiz_feedback = "Correct!"
-                # if the answer is incorrect, decrease the knowledge level of the meaning
-                elif len(correct_answers) == 1:
-                    correct_answers_assoc[0].knowledge_level = 1
-                    session.add(correct_answers_assoc[0])
-                    self.repetition_model.quiz_feedback = "Wrong! The correct answer is: " + correct_answers[0]
+                # if the answer is incorrect, decrease the knowledge level
+                # of meanings corresponding to every correct answer
                 else:
                     for a in correct_answers_assoc:
                         a.knowledge_level = 1
                         session.add(a)
                     self.repetition_model.quiz_feedback = "Wrong!"
+                    
                 self.repetition_model.quiz_correct_answers = correct_answers
             
             elif level == 3:
@@ -274,22 +273,25 @@ class RepetitionController(QObject):
                 assoc = None
                 for a in d.words:
                     correct_answers_assoc.append(a)
-                    correct_answers.append(a.word)
+                    correct_answers.append(a.word.word)
                     if a.word == w:
                         assoc = a
                         
-                # if the answer is wrong, decrease the knowledge level of every correct answer
+                # if the answer is wrong, decrease the knowledge level
+                # of meanings corresponding to every correct answer
                 if assoc is None:
                     for a in correct_answers_assoc:
                         a.knowledge_level = 2
                         session.add(a)
-                    self.repetition_model.quiz_feedback = "Wrong! An example of a correct answer is: " + random.choice(correct_answers)
+                    self.repetition_model.quiz_feedback = "Wrong!"
                 else:
                     assoc.knowledge_level = 3
                     session.add(assoc)
                     self.repetition_model.quiz_feedback = "Correct!"
                     
-            # Session.commit()
+                self.repetition_model.quiz_correct_answers = correct_answers
+                    
+            session.commit()
             
         except Exception as e:
             session.rollback()

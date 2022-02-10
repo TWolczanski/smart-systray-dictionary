@@ -14,7 +14,10 @@ class SearchView(QWidget):
         self.top_layout = QHBoxLayout()
         
         self.search_bar = QLineEdit()
-        self.search_btn = QPushButton("Search", clicked=lambda: self.search_controller.search(self.search_bar.text()))
+        self.search_btn = QPushButton(
+            "Search",
+            clicked=lambda: self.search_controller.search(self.search_bar.text())
+        )
         self.search_bar.returnPressed.connect(self.search_btn.click)
         self.top_layout.addWidget(self.search_bar)
         self.top_layout.addWidget(self.search_btn)
@@ -121,7 +124,7 @@ class SearchResults(QScrollArea):
     def __init__(self, entries):
         super().__init__()
         self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
-        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         self.setWidgetResizable(True)
         
         results = QWidget()

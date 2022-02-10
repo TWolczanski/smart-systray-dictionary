@@ -1,8 +1,6 @@
-from functools import partial
-from json.tool import main
 from PyQt5 import QtGui, QtWidgets
-from PyQt5.QtCore import Qt, QTimer
-from PyQt5.QtWidgets import QVBoxLayout, QHBoxLayout, QWidget, QLabel, QLineEdit, QPushButton, QScrollArea, QSizePolicy, QErrorMessage, QTabWidget, QDesktopWidget, QMessageBox, QRadioButton, QButtonGroup, QStyle
+from PyQt5.QtCore import Qt, QTimer, pyqtSignal
+from PyQt5.QtWidgets import QVBoxLayout, QHBoxLayout, QWidget, QLabel, QLineEdit, QPushButton, QScrollArea, QSizePolicy, QDesktopWidget, QRadioButton, QButtonGroup, QStackedWidget
 
 class RepetitionView(QWidget):
     def __init__(self, model, controller):
@@ -22,11 +20,6 @@ class RepetitionView(QWidget):
         self.close_button.setStyleSheet("border: none")
         self.close_button.setCursor(QtGui.QCursor(Qt.PointingHandCursor))
         self.close_button.clicked.connect(self.close)
-        # self.close_button.setIcon(
-        #     self.close_button.style().standardIcon(
-        #         QStyle.SP_TitleBarCloseButton
-        #     )
-        # )
         top_layout.addWidget(self.close_button)
         top_layout.addStretch()
         
@@ -36,12 +29,20 @@ class RepetitionView(QWidget):
         
         main_layout.addLayout(top_layout)
         
-        self.easy_quiz = EasyQuiz(self.model, self.controller)
-        main_layout.addWidget(self.easy_quiz)
+        self.quizzes = QStackedWidget()
+        self.easy_quiz = EasyQuiz(self.model, self.controller, self)
+        self.hard_quiz = HardQuiz(self.model, self.controller, self)
+        self.quizzes.addWidget(self.easy_quiz)
+        self.quizzes.addWidget(self.hard_quiz)
+        main_layout.addWidget(self.quizzes)
         
         self.setLayout(main_layout)
         
-        self.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint | Qt.X11BypassWindowManagerHint)
+        self.setWindowFlags(
+            Qt.WindowStaysOnTopHint |
+            Qt.FramelessWindowHint |
+            Qt.X11BypassWindowManagerHint
+        )
         
         self.resize(250, 150)
         fg = self.frameGeometry()
@@ -67,10 +68,23 @@ class RepetitionView(QWidget):
     def on_quiz_created(self):
         self.count = self.model.quiz_time
         self.info.setText(str(self.count))
-        vbar = self.easy_quiz.verticalScrollBar()
-        vbar.setValue(vbar.minimum())
-        self.easy_quiz.set_question(self.model.quiz_question)
-        self.easy_quiz.set_options(self.model.quiz_options)
+        
+        if self.model.quiz_level < 3:
+            vbar = self.easy_quiz.verticalScrollBar()
+            vbar.setValue(vbar.minimum())
+            hbar = self.easy_quiz.horizontalScrollBar()
+            hbar.setValue(hbar.minimum())
+            self.easy_quiz.set_question(self.model.quiz_question)
+            self.easy_quiz.set_options(self.model.quiz_options)
+            self.quizzes.setCurrentWidget(self.easy_quiz)
+        else:
+            vbar = self.hard_quiz.verticalScrollBar()
+            vbar.setValue(vbar.minimum())
+            hbar = self.hard_quiz.horizontalScrollBar()
+            hbar.setValue(hbar.minimum())
+            self.hard_quiz.set_question(self.model.quiz_question)
+            self.quizzes.setCurrentWidget(self.hard_quiz)
+            
         self.show()
         self.countdown.start(1000)
     
@@ -78,17 +92,21 @@ class RepetitionView(QWidget):
         self.countdown.stop()
         self.info.setText(self.model.quiz_feedback)
         self.info.adjustSize()
-        self.easy_quiz.on_quiz_answer_checked()
+        if self.model.quiz_level < 3:
+            self.easy_quiz.on_quiz_answer_checked()
+        else:
+            self.hard_quiz.on_quiz_answer_checked()
 
 
 class EasyQuiz(QScrollArea):
-    def __init__(self, model, controller):
+    def __init__(self, model, controller, view):
         super().__init__()
         self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
-        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         self.setWidgetResizable(True)
         self.model = model
         self.controller = controller
+        self.view = view
         
         self.quiz = QWidget()
         self.setWidget(self.quiz)
@@ -99,11 +117,12 @@ class EasyQuiz(QScrollArea):
         
         self.question = QLabel()
         self.question.setWordWrap(True)
-        question_font = QtGui.QFont()
-        question_font.setFamily("Times")
-        question_font.setPointSize(16)
-        question_font.setBold(True)
-        self.question.setFont(question_font)
+        self.question.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.question_font = QtGui.QFont()
+        self.question_font.setFamily("Times")
+        self.question_font.setPointSize(16)
+        self.question_font.setBold(True)
+        self.question.setFont(self.question_font)
         main_layout.addWidget(self.question)
         
         self.options = QButtonGroup()
@@ -135,6 +154,7 @@ class EasyQuiz(QScrollArea):
         self.setStyleSheet(".EasyQuiz { border: none }")
     
     def on_option_clicked(self):
+        self.view.activateWindow()
         self.controller.check_quiz_answer(self.labels[self.options.checkedId()].text())
         # for some reason range(4) causes a scroll
         for i in range(3, 0, -1):
@@ -143,6 +163,13 @@ class EasyQuiz(QScrollArea):
             label.setStyleSheet("color: gray")
     
     def set_question(self, question):
+        if len(question) > 60:
+            self.question_font.setPointSize(12)
+        elif len(question) > 30:
+            self.question_font.setPointSize(14)
+        else:
+            self.question_font.setPointSize(16)
+        self.question.setFont(self.question_font)
         self.question.setText(question)
     
     def set_options(self, options):
@@ -167,3 +194,95 @@ class EasyQuiz(QScrollArea):
                 label.setStyleSheet("color: green")
             elif answer == label.text():
                 label.setStyleSheet("color: red")
+                
+                
+class HardQuiz(QScrollArea):
+    def __init__(self, model, controller, view):
+        super().__init__()
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        self.setWidgetResizable(True)
+        self.model = model
+        self.controller = controller
+        self.view = view
+        
+        self.quiz = QWidget()
+        self.setWidget(self.quiz)
+        self.main_layout = QVBoxLayout()
+        self.main_layout.setAlignment(Qt.AlignTop)
+        self.main_layout.setSpacing(10)
+        self.quiz.setLayout(self.main_layout)
+        
+        self.question = QLabel()
+        self.question.setWordWrap(True)
+        self.question.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.question_font = QtGui.QFont()
+        self.question_font.setFamily("Times")
+        self.question_font.setPointSize(16)
+        self.question_font.setBold(True)
+        self.question.setFont(self.question_font)
+        self.main_layout.addWidget(self.question)
+        
+        self.button = QPushButton("Check")
+        self.button.clicked.connect(self.on_button_clicked)
+        
+        self.answer = ClickableLineEdit()
+        self.answer.clicked.connect(self.view.activateWindow)
+        self.answer.returnPressed.connect(self.button.click)
+        
+        self.feedback = QWidget()
+        self.feedback_layout = QVBoxLayout()
+        self.feedback.setLayout(self.feedback_layout)
+        
+        self.main_layout.addWidget(self.answer)
+        self.main_layout.addWidget(self.button)
+        self.main_layout.addWidget(self.feedback)
+        
+        self.setStyleSheet(".HardQuiz { border: none }")
+    
+    def on_button_clicked(self):
+        self.button.setEnabled(False)
+        self.answer.setEnabled(False)
+        self.controller.check_quiz_answer(self.answer.text())
+    
+    def set_question(self, question):
+        if len(question) > 60:
+            self.question_font.setPointSize(12)
+        elif len(question) > 30:
+            self.question_font.setPointSize(14)
+        else:
+            self.question_font.setPointSize(16)
+        self.question.setFont(self.question_font)
+        self.question.setText(question)
+        
+        self.button.setEnabled(True)
+        self.answer.setEnabled(True)
+        self.answer.setText("")
+        
+        # clear the feedback
+        self.main_layout.removeWidget(self.feedback)
+        self.feedback.deleteLater()
+        self.feedback = QWidget()
+    
+    def on_quiz_answer_checked(self):
+        answer = self.answer.text()
+        feedback_layout = QVBoxLayout()
+        self.feedback.setLayout(feedback_layout)
+        self.main_layout.addWidget(self.feedback)
+        
+        if answer not in self.model.quiz_correct_answers:
+            label = QLabel(answer)
+            label.setStyleSheet("color: red")
+            feedback_layout.addWidget(label)
+            
+        for a in self.model.quiz_correct_answers:
+            label = QLabel(a)
+            label.setStyleSheet("color: green")
+            feedback_layout.addWidget(label)
+
+
+class ClickableLineEdit(QLineEdit):
+    clicked = pyqtSignal()
+    def mousePressEvent(self, event):
+        self.clicked.emit()
+        super().mousePressEvent(event)
