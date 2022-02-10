@@ -10,6 +10,8 @@ class SearchView(QWidget):
         self.search_controller = search_controller
         self.repetition_controller = repetition_controller
         
+        self.setWindowTitle("Search")
+        
         self.main_layout = QVBoxLayout()
         self.top_layout = QHBoxLayout()
         

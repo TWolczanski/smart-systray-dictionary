@@ -7,6 +7,8 @@ class SettingsView(QWidget):
         self.model = model
         self.controller = controller
         
+        self.setWindowTitle("Settings")
+        
         layout = QFormLayout()
         self.setLayout(layout)
         

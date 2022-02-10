@@ -42,10 +42,23 @@ class SearchController(QObject):
         self.model.search_finished.emit()
     
     def search_pl(self, word):
-        res = requests.get("https://www.diki.pl/slownik-angielskiego?q=" + word, headers={"User-Agent": "Mozilla/5.0"})
+        """Scrape polish definitions of the given English word from www.diki.pl
+        
+        :param word: the word to scrape the meanings of
+        :type word: str
+        """
+        res = requests.get(
+            "https://www.diki.pl/slownik-angielskiego?q=" + word,
+            headers={"User-Agent": "Mozilla/5.0"}
+        )
         content = res.text
         soup = bs4.BeautifulSoup(content, "html.parser")
-        container = soup.select_one('a[name="en-pl"]').parent.find_next_sibling(class_="diki-results-container").select_one(".diki-results-left-column")
+        container = (
+            soup.select_one('a[name="en-pl"]')
+            .parent
+            .find_next_sibling(class_="diki-results-container")
+            .select_one(".diki-results-left-column")
+        )
         
         for t1 in container.select(".dictionaryEntity"):
             entry = {"words": [], "definitions": []}
@@ -84,7 +97,15 @@ class SearchController(QObject):
             self.model.english_to_polish.append(entry)
     
     def search_en(self, word):
-        res = requests.get("https://api.dictionaryapi.dev/api/v2/entries/en/" + word, headers={"User-Agent": "Mozilla/5.0"})
+        """Get english definitions of the given word from dictionaryapi.dev
+        
+        :param word: the word to get the meanings of
+        :type word: str
+        """
+        res = requests.get(
+            "https://api.dictionaryapi.dev/api/v2/entries/en/" + word,
+            headers={"User-Agent": "Mozilla/5.0"}
+        )
         content = res.json()
         
         for c in content:

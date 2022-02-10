@@ -30,7 +30,9 @@ class RepetitionView(QWidget):
         main_layout.addLayout(top_layout)
         
         self.quizzes = QStackedWidget()
+        # a widget for quizzes of level 1 and 2
         self.easy_quiz = EasyQuiz(self.model, self.controller, self)
+        # a widget for quizzes of level 3
         self.hard_quiz = HardQuiz(self.model, self.controller, self)
         self.quizzes.addWidget(self.easy_quiz)
         self.quizzes.addWidget(self.hard_quiz)
@@ -70,6 +72,7 @@ class RepetitionView(QWidget):
         self.info.setText(str(self.count))
         
         if self.model.quiz_level < 3:
+            # reset scrollbars
             vbar = self.easy_quiz.verticalScrollBar()
             vbar.setValue(vbar.minimum())
             hbar = self.easy_quiz.horizontalScrollBar()
@@ -78,6 +81,7 @@ class RepetitionView(QWidget):
             self.easy_quiz.set_options(self.model.quiz_options)
             self.quizzes.setCurrentWidget(self.easy_quiz)
         else:
+            # reset scrollbars
             vbar = self.hard_quiz.verticalScrollBar()
             vbar.setValue(vbar.minimum())
             hbar = self.hard_quiz.horizontalScrollBar()

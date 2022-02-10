@@ -28,6 +28,7 @@ class SystemTrayView(QSystemTrayIcon):
         self.setContextMenu(self.menu)
     
     def on_quit(self):
+        # stop the thread performing database operations
         self.repetition_controller.operations.put(None)
         qApp.quit()
     
