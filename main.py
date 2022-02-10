@@ -25,7 +25,7 @@ if __name__ == "__main__":
     
     search_view = SearchView(search_model, search_controller, repetition_controller)
     repetition_view = RepetitionView(repetition_model, repetition_controller)
-    settings_view = SettingsView(settings_model, settings_controller)
+    settings_view = SettingsView(settings_model, repetition_model, settings_controller)
     system_tray_view = SystemTrayView(search_view, settings_view, repetition_controller)
     system_tray_view.show()
     

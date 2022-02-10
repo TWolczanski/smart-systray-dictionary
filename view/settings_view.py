@@ -2,9 +2,10 @@ from PyQt5 import QtGui, QtWidgets
 from PyQt5.QtWidgets import QWidget, QLineEdit, QPushButton, QFormLayout, QErrorMessage, QMessageBox
 
 class SettingsView(QWidget):
-    def __init__(self, model, controller):
+    def __init__(self, settings_model, repetition_model, controller):
         super().__init__()
-        self.model = model
+        self.settings_model = settings_model
+        self.repetition_model = repetition_model
         self.controller = controller
         
         self.setWindowTitle("Settings")
@@ -30,11 +31,11 @@ class SettingsView(QWidget):
         self.msg = QMessageBox()
         self.msg.setIcon(QMessageBox.Information)
         
-        self.model.settings_changed.connect(self.on_settings_changed)
+        self.settings_model.settings_changed.connect(self.on_settings_changed)
     
     def showEvent(self, event):
-        self.quiz_time.setText("")
-        self.quiz_interval.setText("")
+        self.quiz_time.setText(str(self.repetition_model.quiz_time))
+        self.quiz_interval.setText(str(self.repetition_model.quiz_interval))
         event.accept()
     
     def on_save(self):
@@ -44,7 +45,7 @@ class SettingsView(QWidget):
         )
     
     def on_settings_changed(self):
-        if self.model.error:
+        if self.settings_model.error:
             self.error.showMessage("An error occurred while saving changes")
         else:
             self.msg.setText("Settings saved")

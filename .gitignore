@@ -153,5 +153,5 @@ cython_debug/
 
 .venv/
 .vscode/
-*.db
+database/
 docs/
