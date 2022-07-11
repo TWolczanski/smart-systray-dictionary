@@ -137,7 +137,7 @@ class EasyQuiz(QScrollArea):
             option_layout.setAlignment(Qt.AlignLeft)
             
             option = QRadioButton()
-            # give the button id, so it can be associated with a label
+            # give the button an id, so it can be associated with a label
             self.options.addButton(option, i)
             option.clicked.connect(self.on_option_clicked)
             option_layout.addWidget(option)

@@ -3,4 +3,3 @@ requests >= 2.27.1
 beautifulsoup4 >= 4.10.0
 SQLAlchemy >= 1.4.31
 pynput >= 1.7.6
-Sphinx >= 4.4.0

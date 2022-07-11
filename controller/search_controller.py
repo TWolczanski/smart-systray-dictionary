@@ -43,9 +43,6 @@ class SearchController(QObject):
     
     def search_pl(self, word):
         """Scrape polish definitions of the given English word from www.diki.pl
-        
-        :param word: the word to scrape the meanings of
-        :type word: str
         """
         res = requests.get(
             "https://www.diki.pl/slownik-angielskiego?q=" + word,
@@ -98,9 +95,6 @@ class SearchController(QObject):
     
     def search_en(self, word):
         """Get english definitions of the given word from dictionaryapi.dev
-        
-        :param word: the word to get the meanings of
-        :type word: str
         """
         res = requests.get(
             "https://api.dictionaryapi.dev/api/v2/entries/en/" + word,
